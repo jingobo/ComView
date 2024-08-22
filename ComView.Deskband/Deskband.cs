@@ -55,7 +55,7 @@ namespace ComView.Deskband
                 Ports = new ObservableCollection<ComPortModel>(),
             };
 
-            Options.MinHorizontalSize = new DeskBandSize(60, -1);
+            Options.MinHorizontalSize = new DeskBandSize(50, -1);
 
             // Инициализация контекстного меню
             var demoMode = new DeskBandMenuAction("Режим демо");

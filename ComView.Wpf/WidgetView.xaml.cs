@@ -3,6 +3,7 @@ using ComView.Core;
 using ComView.Core.Sort;
 using Microsoft.Win32;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -271,13 +272,13 @@ namespace ComView.Wpf
 
             #region fields, ctor
             /// <summary>
-            /// Количество столбцов и строк
-            /// </summary>
-            private int columns = 1, rows = 2;
-            /// <summary>
             /// Текущий набор цветов
             /// </summary>
             private ColorSet colorSet = ColorSet.Light;
+            /// <summary>
+            /// Количество столбцов и строк
+            /// </summary>
+            private int controlRows, columns = 1, rows = 1;
 
             /// <summary>
             /// Конструктор по умолчанию
@@ -303,9 +304,25 @@ namespace ComView.Wpf
                     if (MenuSorter.SourcePorts == value) 
                         return;
 
+                    // Отписка
+                    {
+                        INotifyPropertyChanged npc = MenuSorter.SourcePorts;
+                        if (npc != null)
+                            npc.PropertyChanged -= PortsPropertyChanged;
+                    }
+
                     MenuSorter.SourcePorts = value;
                     MainSorter.SourcePorts = value;
+
+                    // Подписка
+                    {
+                        INotifyPropertyChanged npc = MenuSorter.SourcePorts;
+                        if (npc != null)
+                            npc.PropertyChanged += PortsPropertyChanged;
+                    }
+
                     OnPropertyChanged();
+                    UpdateRowCount();
                 }
             }
 
@@ -352,7 +369,7 @@ namespace ComView.Wpf
             public int Columns
             {
                 get => columns;
-                set
+                private set
                 {
                     if (value < 1)
                         value = 1;
@@ -368,10 +385,10 @@ namespace ComView.Wpf
             public int Rows
             {
                 get => rows;
-                set
+                private set
                 {
-                    if (value > 2)
-                        value = 2;
+                    if (value < 1)
+                        value = 1;
 
                     rows = value;
                     OnPropertyChanged();
@@ -398,6 +415,44 @@ namespace ComView.Wpf
                         ColorSet.Light :
                         ColorSet.Dark;
                 }
+            }
+
+            /// <summary>
+            /// Обработчик изменения свойств списка портов
+            /// </summary>
+            private void PortsPropertyChanged(object sender, PropertyChangedEventArgs e)
+            {
+                if (e.PropertyName == nameof(SourcePorts.Count))
+                    UpdateRowCount();
+            }
+
+            /// <summary>
+            /// Обновляет количество строк
+            /// </summary>
+            private void UpdateRowCount()
+            {
+                if (SourcePorts == null)
+                    return;
+
+                // Количество портов
+                var portCount = SourcePorts.Count;
+
+                // Актуальное количество строк
+                var actualRows = portCount / Columns;
+                if (portCount % Columns != 0)
+                    actualRows++;
+
+                Rows = Math.Min(controlRows, actualRows);
+            }
+
+            /// <summary>
+            /// Устанавливает параметры таблицы
+            /// </summary>
+            public void SetGrid(int columns, int rows)
+            {
+                Columns = columns;
+                controlRows = rows;
+                UpdateRowCount();
             }
             #endregion
         }
@@ -486,7 +541,7 @@ namespace ComView.Wpf
 
             // Отложенный пересчет
             isThemeChangedRequested = true;
-                await Task.Delay(100);
+                await Task.Delay(25);
             isThemeChangedRequested = false;
 
             model.ThemeChanged();
@@ -495,14 +550,10 @@ namespace ComView.Wpf
         /// <summary>
         /// Обработчик изменения размеров основного элемента
         /// </summary>
-        private void DoSizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            if (e.WidthChanged)
-                model.Columns = (int)e.NewSize.Width / 45;
+        private void DoSizeChanged(object sender, SizeChangedEventArgs e) =>
+            model.SetGrid((int)e.NewSize.Width / 40,
+                          (int)e.NewSize.Height / 20);
 
-            if (e.HeightChanged)
-                model.Rows = (int)e.NewSize.Height / 20;
-        }
         #endregion
     }
 }

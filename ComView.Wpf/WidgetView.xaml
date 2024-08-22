@@ -28,66 +28,88 @@
                         <Canvas Grid.Column="0"
                                 Width="24"
                                 Height="24"
-                                Margin="5"
+                                Margin="5 0 0 0"
                                 VerticalAlignment="Center"
                                 Opacity="0.65">
                             <Path Data="M7,3H17V5H19V8H16V14H8V8H5V5H7V3M17,9H19V14H17V9M11,15H13V22H11V15M5,9H7V14H5V9Z" Fill="{Binding ColorSet.Normal}" />
                         </Canvas>
 
-                        <!--  Список портов  -->
-                        <ItemsControl Grid.Column="1"
-                                      ItemsSource="{Binding MainSorter.Ports}"
-                                      SizeChanged="DoSizeChanged">
-                            <!--  Компоновка элементов  -->
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <UniformGrid ClipToBounds="true"
-                                                 Columns="{Binding Columns}"
-                                                 Rows="{Binding Rows}" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
+                        <!--  Контейнер списка портов  -->
+                        <Grid Grid.Column="1" SizeChanged="DoSizeChanged">
+                            <!--  Список портов  -->
+                            <ItemsControl ItemsSource="{Binding MainSorter.Ports}">
+                                <!--  Компоновка элементов  -->
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid ClipToBounds="true"
+                                                     Columns="{Binding Columns}"
+                                                     Rows="{Binding Rows}" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
 
-                            <!--  Шаблон элемента порта  -->
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <!--  Компоновка  -->
-                                    <StackPanel Orientation="Horizontal">
-                                        <!--  Индикатор занятости процессом  -->
-                                        <Ellipse Name="baloon"
-                                                 Width="5"
-                                                 Height="5"
-                                                 Margin="5 0"
-                                                 VerticalAlignment="Center"
-                                                 Fill="{Binding Parent.ColorSet.Baloon}"
-                                                 ToolTip="{Binding Owner.ProcessName}" />
+                                <!--  Шаблон элемента порта  -->
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <!--  Компоновка  -->
+                                        <StackPanel Orientation="Horizontal">
+                                            <!--  Индикатор занятости процессом  -->
+                                            <Ellipse Name="baloon"
+                                                     Width="5"
+                                                     Height="5"
+                                                     Margin="5 0"
+                                                     VerticalAlignment="Center"
+                                                     Fill="{Binding Parent.ColorSet.Baloon}"
+                                                     ToolTip="{Binding Owner.ProcessName}" />
 
-                                        <!--  Имя порта  -->
-                                        <TextBlock Name="name"
-                                                   VerticalAlignment="Center"
-                                                   Background="{StaticResource HitTestBrush}"
-                                                   FontWeight="Medium"
-                                                   Foreground="{Binding Parent.ColorSet.Normal}"
-                                                   Text="{Binding Owner.Number}"
-                                                   ToolTip="{Binding Owner.Description}" />
-                                    </StackPanel>
+                                            <!--  Имя порта  -->
+                                            <TextBlock Name="name"
+                                                       VerticalAlignment="Center"
+                                                       Background="{StaticResource HitTestBrush}"
+                                                       FontWeight="Medium"
+                                                       Foreground="{Binding Parent.ColorSet.Normal}"
+                                                       Text="{Binding Owner.Number}"
+                                                       ToolTip="{Binding Owner.Description}" />
+                                        </StackPanel>
 
-                                    <DataTemplate.Triggers>
-                                        <!--  Триггеры на изменение цвета имени в зависимости от состояния  -->
-                                        <DataTrigger Binding="{Binding Owner.State}" Value="Newest">
-                                            <Setter TargetName="name" Property="Foreground" Value="{Binding Parent.ColorSet.Added}" />
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding Owner.State}" Value="Removed">
-                                            <Setter TargetName="name" Property="Foreground" Value="{Binding Parent.ColorSet.Removed}" />
-                                        </DataTrigger>
+                                        <DataTemplate.Triggers>
+                                            <!--  Триггеры на изменение цвета имени в зависимости от состояния  -->
+                                            <DataTrigger Binding="{Binding Owner.State}" Value="Newest">
+                                                <Setter TargetName="name" Property="Foreground" Value="{Binding Parent.ColorSet.Added}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Owner.State}" Value="Removed">
+                                                <Setter TargetName="name" Property="Foreground" Value="{Binding Parent.ColorSet.Removed}" />
+                                            </DataTrigger>
 
-                                        <!--  Скрытие индикатора занятости процессом  -->
-                                        <DataTrigger Binding="{Binding Owner.ProcessName}" Value="{x:Null}">
-                                            <Setter TargetName="baloon" Property="Fill" Value="Transparent" />
-                                        </DataTrigger>
-                                    </DataTemplate.Triggers>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                                            <!--  Скрытие индикатора занятости процессом  -->
+                                            <DataTrigger Binding="{Binding Owner.ProcessName}" Value="{x:Null}">
+                                                <Setter TargetName="baloon" Property="Fill" Value="Transparent" />
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!--  Сообщение об отсутствующих порта  -->
+                            <TextBlock Margin="5 0"
+                                       VerticalAlignment="Center"
+                                       FontSize="9"
+                                       FontWeight="Medium"
+                                       Foreground="{Binding ColorSet.Normal}"
+                                       Text="COM missing"
+                                       TextWrapping="WrapWithOverflow">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding MainSorter.Ports.Count}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+
+                            </TextBlock>
+                        </Grid>
                     </Grid>
 
                     <!--  Выпадающиее меню основного списка  -->
@@ -153,14 +175,14 @@
                                                  ToolTip="{Binding Owner.ProcessName}" />
                                         <!--  Имя портв  -->
                                         <TextBlock Name="name"
-                                                   Width="50"
+                                                   Width="55"
                                                    Margin="0 5"
                                                    FontWeight="Medium"
                                                    Foreground="{Binding Parent.ColorSet.Normal}"
                                                    Text="{Binding Owner.Name}" />
                                         <!--  Описание порта  -->
                                         <TextBlock Name="desc"
-                                                   Margin="0 5"
+                                                   Margin="0 5 5 5"
                                                    Foreground="{Binding Parent.ColorSet.Normal}"
                                                    Opacity="0.5"
                                                    Text="{Binding Owner.Description}" />
