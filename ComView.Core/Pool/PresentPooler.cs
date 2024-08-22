@@ -259,6 +259,7 @@ namespace ComView.Core.Pool
                     }
 
                     // Определение описаний портов
+                    if (Ports.Any(p => p.IsDescriptionEmpty()))
                     {
                         // Список заголовков
                         var captions = new List<string>();
@@ -278,7 +279,7 @@ namespace ComView.Core.Pool
                         await Task.Run(wmiReadyEvent.WaitOne);
 
                         // Разбор результатов
-                        foreach (var port in Ports)
+                        foreach (var port in Ports.Where(p => p.IsDescriptionEmpty()))
                         {
                             var suffix = $"({port.Name})";
                             var caption = captions.FirstOrDefault(cp => cp.EndsWith(suffix));

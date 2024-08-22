@@ -48,7 +48,7 @@ namespace ComView.Core
         /// <summary>
         /// Описание
         /// </summary>
-        private string description = "Unknown";
+        private string description;
 
         /// <summary>
         /// Префикс имени порта
@@ -209,5 +209,17 @@ namespace ComView.Core
             get;
         }
         #endregion
+    }
+
+    /// <summary>
+    /// Класс расширение класса модели порта
+    /// </summary>
+    internal static class ComPortModelHelper
+    {
+        /// <summary>
+        /// Получает признак отсутствия описания
+        /// </summary>
+        public static bool IsDescriptionEmpty(this ComPortModel model) =>
+            model.Description == null;
     }
 }

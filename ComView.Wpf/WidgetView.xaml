@@ -79,6 +79,8 @@
                                         <DataTrigger Binding="{Binding Owner.State}" Value="Removed">
                                             <Setter TargetName="name" Property="Foreground" Value="{Binding Parent.ColorSet.Removed}" />
                                         </DataTrigger>
+
+                                        <!--  Скрытие индикатора занятости процессом  -->
                                         <DataTrigger Binding="{Binding Owner.ProcessName}" Value="{x:Null}">
                                             <Setter TargetName="baloon" Property="Fill" Value="Transparent" />
                                         </DataTrigger>
@@ -157,7 +159,8 @@
                                                    Foreground="{Binding Parent.ColorSet.Normal}"
                                                    Text="{Binding Owner.Name}" />
                                         <!--  Описание порта  -->
-                                        <TextBlock Margin="0 5"
+                                        <TextBlock Name="desc"
+                                                   Margin="0 5"
                                                    Foreground="{Binding Parent.ColorSet.Normal}"
                                                    Opacity="0.5"
                                                    Text="{Binding Owner.Description}" />
@@ -171,8 +174,15 @@
                                         <DataTrigger Binding="{Binding Owner.State}" Value="Removed">
                                             <Setter TargetName="name" Property="Foreground" Value="{Binding Parent.ColorSet.Removed}" />
                                         </DataTrigger>
+
+                                        <!--  Скрытие индикатора занятости процессом  -->
                                         <DataTrigger Binding="{Binding Owner.ProcessName}" Value="{x:Null}">
                                             <Setter TargetName="baloon" Property="Fill" Value="Transparent" />
+                                        </DataTrigger>
+
+                                        <!--  Замена текста описания в случае его отсутствия  -->
+                                        <DataTrigger Binding="{Binding Owner.Description}" Value="{x:Null}">
+                                            <Setter TargetName="desc" Property="Text" Value="Unknown" />
                                         </DataTrigger>
                                     </DataTemplate.Triggers>
                                 </DataTemplate>

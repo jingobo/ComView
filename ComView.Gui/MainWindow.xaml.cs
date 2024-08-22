@@ -1,6 +1,6 @@
 ﻿// Включение тестового опросника
 #if DEBUG
-    #define Demo
+    //#define Demo
 #endif
 
 using CommunityToolkit.Mvvm.ComponentModel;
