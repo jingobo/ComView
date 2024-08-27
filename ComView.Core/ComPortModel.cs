@@ -5,8 +5,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Windows.Input;
+using System.Threading.Tasks;
 
 namespace ComView.Core
 {
@@ -135,7 +134,7 @@ namespace ComView.Core
                     "CoolTerm.exe");
 
                 // Запуск терминала
-                Process.Start(termFilePath, filePath);
+                Task.Run(() => Process.Start(termFilePath, filePath));
             }, () => State != PresentState.Removed);
         }
         #endregion
