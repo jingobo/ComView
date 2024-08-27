@@ -113,6 +113,41 @@ namespace ComView.Core.Pool
             /// </summary>
             public int Handle;
         }
+        
+        /// <summary>
+        /// Перечисление статус ответа из канала
+        /// </summary>
+        private enum PipeStatus : int
+        {
+            /// <summary>
+            /// Успешно
+            /// </summary>
+            Success,
+            /// <summary>
+            /// Текущий процесс не обрабатывается
+            /// </summary>
+            SameProcess,
+            /// <summary>
+            /// Не удалось открыть процесс
+            /// </summary>
+            OpenProcess,
+            /// <summary>
+            /// Не удалось создать дубликат дескриптора
+            /// </summary>
+            TargetDuplicate,
+            /// <summary>
+            /// Не удалось определить тип дескриптора
+            /// </summary>
+            TargetQueryType,
+            /// <summary>
+            /// Не корректный тип дескриптора
+            /// </summary>
+            TargetInvalidType,
+            /// <summary>
+            /// Не удалось определить имя дескриптора
+            /// </summary>
+            TargetQueryName,
+        }
 
         /// <summary>
         /// Структура ответа из канала
@@ -120,6 +155,10 @@ namespace ComView.Core.Pool
         [StructLayout(LayoutKind.Sequential)]
         private struct PipeResponse
         {
+            /// <summary>
+            /// Статус операции
+            /// </summary>
+            public PipeStatus Status;
             /// <summary>
             /// Размер в байтах
             /// </summary>
@@ -476,10 +515,42 @@ namespace ComView.Core.Pool
                                     }
                                 }
 
-                                // Конвертирование итогового имени дескриптора
-                                cacheHandle.Name = response.Size >= 18 ?
-                                    Encoding.Unicode.GetString(response.Data, 16, response.Size - 18) :
-                                    string.Empty;
+                                var isBreak = false;
+                                switch (response.Status)
+                                {
+                                    case PipeStatus.Success:
+                                        // Конвертирование итогового имени дескриптора
+                                        cacheHandle.Name = Encoding.Unicode.GetString(response.Data, 16, response.Size - 18);
+                                        break;
+
+                                    case PipeStatus.OpenProcess:
+                                    case PipeStatus.SameProcess:
+                                        // Остановить обработку процесса
+                                        isBreak = true;
+                                        break;
+
+                                    case PipeStatus.TargetDuplicate:
+                                    case PipeStatus.TargetQueryType:
+                                    case PipeStatus.TargetInvalidType:
+                                        // Возможно дескриптор не корректный
+                                        cacheHandle.Name = string.Empty;
+                                        break;
+
+                                    case PipeStatus.TargetQueryName:
+                                        // Пробуем дать второй шанс
+                                        if (cacheHandle.Name == null)
+                                            cacheHandle.Name = string.Empty;
+                                        break;
+
+                                    default:
+                                        // Что то странное
+                                        ClosePipe();
+                                        return;
+                                }
+
+                                // Если процесс не подходит
+                                if (isBreak)
+                                    break;
                             }
                         }
 

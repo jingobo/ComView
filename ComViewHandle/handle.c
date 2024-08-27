@@ -51,16 +51,23 @@ const handle_name_t * handle_query_name(DWORD process_id, HANDLE handle)
 
     // Текущий процесс не обслуживаем
     if (process_cur_id == process_id)
+    {
+        handle_name.status = HANDLE_STATUS_SAME_PROCESS;
         return &handle_name;
+    }
 
     // Открытие процесса
     const HANDLE process_handle = OpenProcess(PROCESS_DUP_HANDLE, TRUE, process_id);
     if (process_handle == INVALID_HANDLE_VALUE)
+    {
+        handle_name.status = HANDLE_STATUS_OPEN_PROCESS;
         return &handle_name;
+    }
 
     // Клонирование дескриптора
     if (!DuplicateHandle(process_handle, handle, process_cur_handle, &handle_query, 0, FALSE, DUPLICATE_SAME_ACCESS))
     {
+        handle_name.status = HANDLE_TARGET_DUPLICATE;
         CloseHandle(process_handle);
         return &handle_name;
     }
@@ -77,11 +84,17 @@ const handle_name_t * handle_query_name(DWORD process_id, HANDLE handle)
     // Запрос типа дескриптора
     ULONG type_buffer_size;
     if (zw_query_object(handle_query, 2, &type_buffer, sizeof(type_buffer), &type_buffer_size) != 0)
+    {
+        handle_name.status = HANDLE_TARGET_QUERY_TYPE;
         goto fin;
+    }
 
     // Обработка только файловых дескрипторов
     if (lstrcmpW(TEXT("File"), type_buffer.name.Buffer) != 0)
+    {
+        handle_name.status = HANDLE_TARGET_INVALID_TYPE;
         goto fin;
+    }
 
     // Создание фонового потока
     if (thread_handle == INVALID_HANDLE_VALUE)
@@ -99,16 +112,21 @@ const handle_name_t * handle_query_name(DWORD process_id, HANDLE handle)
 
         // На всякий случай
         handle_name_size = 0;
+        handle_name.status = HANDLE_TARGET_QUERY_NAME;
+    }
+    else
+    {
+        handle_name.size = (intptr_t)handle_name_size;
+        handle_name.status = (handle_name.size >= 18) ?
+            HANDLE_STATUS_SUCCESS :
+            HANDLE_TARGET_QUERY_NAME;
     }
 
     // Сброс сигнала готовности ответа
     ResetEvent(event_ready);
-
-    // Фиксация длинны
-    assert(handle_name_size >= 0);
-    handle_name.size = (intptr_t)handle_name_size;
-
 fin:
+
+    // Закрытие дескрипторов
     CloseHandle(handle_query);
     CloseHandle(process_handle);
 
