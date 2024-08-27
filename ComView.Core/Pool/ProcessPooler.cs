@@ -289,8 +289,11 @@ namespace ComView.Core.Pool
             try
             {
                 // Цикл опроса
-                while (isActive)
+                for (var delay = new Delay(PoolTime); isActive; )
                 {
+                    // Начало измерения
+                    delay.Start();
+
                     // Подключение к процессу
                     if (pipe == null)
                     {
@@ -541,7 +544,7 @@ namespace ComView.Core.Pool
                     }
 
                     // Пазуа опроса
-                    await Task.Delay(PoolTime);
+                    await delay.Pause();
                 }
             }
             finally

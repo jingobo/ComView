@@ -101,8 +101,14 @@ namespace ComView.Core.Pool
             stopPoolEvent = new ManualResetEvent(false);
             try
             {
+                // Асинхронная задержка
+                var delay = new Delay(100);
+
                 for (var isFirstLoop = true; isActive; isFirstLoop = false)
                 {
+                    // Начало измерения
+                    delay.Start();
+
                     // Определение списка портов
                     {
                         // Словарь системных портов <номер, имя устройства>
@@ -161,7 +167,7 @@ namespace ComView.Core.Pool
                         });
 
                         // Максимальное значение таймаута
-                        const int timeoutMax = 10;
+                        const int timeoutMax = 50;
 
                         // Сброс признака найденности
                         foreach (var port in Ports)
@@ -288,8 +294,8 @@ namespace ComView.Core.Pool
                         }
                     }
 
-                    // Пауза
-                    await Task.Delay(100);
+                    // Пауза опроса
+                    await delay.Pause();
                 }
             }
             finally
