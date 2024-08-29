@@ -115,9 +115,9 @@ namespace ComView.Core.Pool
         }
         
         /// <summary>
-        /// Перечисление статус ответа из канала
+        /// Перечисление статуса дескриптора
         /// </summary>
-        private enum PipeStatus : int
+        public enum HandleStatus : int
         {
             /// <summary>
             /// Успешно
@@ -158,7 +158,7 @@ namespace ComView.Core.Pool
             /// <summary>
             /// Статус операции
             /// </summary>
-            public PipeStatus Status;
+            public HandleStatus Status;
             /// <summary>
             /// Размер в байтах
             /// </summary>
@@ -175,6 +175,7 @@ namespace ComView.Core.Pool
         /// </summary>
         private sealed class HandleCacheEntry
         {
+            #region fields
             /// <summary>
             /// Итоговое имя дескриптора
             /// </summary>
@@ -183,6 +184,139 @@ namespace ComView.Core.Pool
             /// Признак присутствия в системе
             /// </summary>
             public bool IsExists;
+            /// <summary>
+            /// Получает статус последней операции
+            /// </summary>
+            public HandleStatus? Status;
+
+            #endregion
+        }
+
+        /// <summary>
+        /// Класс информации о дескрипторе
+        /// </summary>
+        public sealed class HandleInfo
+        {
+            #region ctor, properties
+            /// <summary>
+            /// Конструктор по умолчанию
+            /// </summary>
+            internal HandleInfo(int handle, string name, HandleStatus? status)
+            {
+                Handle = handle;
+                Status = status;
+                Name = name;
+            }
+
+            /// <summary>
+            /// Получает идентификатор дескриптора
+            /// </summary>
+            public int Handle
+            {
+                get;
+            }
+
+            /// <summary>
+            /// Получает имя дескриптора
+            /// </summary>
+            public string Name
+            {
+                get;
+            }
+
+            /// <summary>
+            /// Получает статус последней операции
+            /// </summary>
+            public HandleStatus? Status
+            {
+                get;
+            }
+            #endregion
+        }
+
+        /// <summary>
+        /// Класс ожидания данных запроса
+        /// </summary>
+        private sealed class QueryWaiter<T> : IDisposable
+        {
+            #region fields
+            /// <summary>
+            /// Данные результата
+            /// </summary>
+            private T data;
+            /// <summary>
+            /// Опциональный аргумент
+            /// </summary>
+            private object arg;
+            /// <summary>
+            /// Признак активности запроса
+            /// </summary>
+            private bool isRequested;
+            /// <summary>
+            /// Событие ожидания
+            /// </summary>
+            private EventWaitHandle waitEvent = new AutoResetEvent(false);
+
+            #endregion
+
+            #region methods
+            /// <summary>
+            /// Производит запрос и синхронное ожидание
+            /// </summary>
+            public Task<T> Query(object arg = null)
+            {
+                // Установка признака ожидания
+                lock (this)
+                {
+                    this.arg = arg;
+                    isRequested = true;
+                }
+
+                return Task.Run(() =>
+                {
+                    // Синхронное ожидание
+                    waitEvent.WaitOne();
+
+                    // Сброс аргумента
+                    this.arg = null;
+
+                    // Сброс ссылки на данные
+                    var result = data;
+                    data = default;
+                    return result;
+                });
+            }
+
+            /// <summary>
+            /// Производит обработку
+            /// </summary>
+            public Task Work(Func<object, T> cb)
+            {
+                if (cb == null)
+                    throw new ArgumentNullException(nameof(cb));
+
+                // Проверка на необходимость обработки
+                lock (this)
+                    if (isRequested)
+                        isRequested = false;
+                    else
+                        return Task.Delay(0);
+
+                // Обработка
+                return Task.Run(() =>
+                {
+                    data = cb(arg);
+                    waitEvent.Set();
+                });
+            }
+
+            /// <summary>
+            /// Производит освобождение ресурсов
+            /// </summary>
+            public void Dispose() =>
+                waitEvent.Dispose();
+
+            #endregion
         }
         #endregion
 
@@ -207,6 +341,15 @@ namespace ComView.Core.Pool
         /// </summary>
         private readonly CancellationTokenSource pipeConnectCancel = 
             new CancellationTokenSource();
+
+        /// <summary>
+        /// Ожидатель данных списка идентификаторов процессов
+        /// </summary>
+        private readonly QueryWaiter<int[]> queryPids = new QueryWaiter<int[]>();
+        /// <summary>
+        /// Ожидатель данных списка дескрипторов процесса
+        /// </summary>
+        private readonly QueryWaiter<HandleInfo[]> queryHandles = new QueryWaiter<HandleInfo[]>();
 
         /// <summary>
         /// Конструктор по умолчанию
@@ -515,28 +658,32 @@ namespace ComView.Core.Pool
                                     }
                                 }
 
+                                // Для внешних запросов
+                                cacheHandle.Status = response.Status;
+
+                                // Проверка результата
                                 var isBreak = false;
                                 switch (response.Status)
                                 {
-                                    case PipeStatus.Success:
+                                    case HandleStatus.Success:
                                         // Конвертирование итогового имени дескриптора
                                         cacheHandle.Name = Encoding.Unicode.GetString(response.Data, 16, response.Size - 18);
                                         break;
 
-                                    case PipeStatus.OpenProcess:
-                                    case PipeStatus.SameProcess:
+                                    case HandleStatus.OpenProcess:
+                                    case HandleStatus.SameProcess:
                                         // Остановить обработку процесса
                                         isBreak = true;
                                         break;
 
-                                    case PipeStatus.TargetDuplicate:
-                                    case PipeStatus.TargetQueryType:
-                                    case PipeStatus.TargetInvalidType:
+                                    case HandleStatus.TargetDuplicate:
+                                    case HandleStatus.TargetQueryType:
+                                    case HandleStatus.TargetInvalidType:
                                         // Возможно дескриптор не корректный
                                         cacheHandle.Name = string.Empty;
                                         break;
 
-                                    case PipeStatus.TargetQueryName:
+                                    case HandleStatus.TargetQueryName:
                                         // Пробуем дать второй шанс
                                         if (cacheHandle.Name == null)
                                             cacheHandle.Name = string.Empty;
@@ -614,6 +761,26 @@ namespace ComView.Core.Pool
                         }
                     }
 
+                    // Обработка запроса списка процессов
+                    await queryPids.Work(_ => cache.Keys.Sort((a, b) => a.CompareTo(b)).ToArray());
+
+                    // Обработка запроса списка дескрипторов процесса
+                    await queryHandles.Work(pid =>
+                    {
+                        // Список дескрипторов процесса
+                        Dictionary<int, HandleCacheEntry> handles;
+
+                        // Если отсутствует
+                        if (!cache.TryGetValue((int)pid, out handles))
+                            return new HandleInfo[0];
+
+                        // Подготовка результата
+                        return handles
+                            .Select(pair => new HandleInfo(pair.Key, pair.Value.Name, pair.Value.Status))
+                            .Sort((a, b) => a.Handle.CompareTo(b.Handle))
+                            .ToArray();
+                    });
+
                     // Пазуа опроса
                     await delay.Pause();
                 }
@@ -629,8 +796,26 @@ namespace ComView.Core.Pool
 
                 // Сигнал остановки
                 stopPoolEvent.DisposeSafe();
+
+                // Сброс ожидателей запросов
+                queryPids.Dispose();
             }
         }
+        #endregion
+
+        #region query
+        /// <summary>
+        /// Производит запрос идентификаторов процессов
+        /// </summary>
+        public Task<int[]> QueryPids() =>
+            queryPids.Query();
+
+        /// <summary>
+        /// Производит запрос дескрипторов процесса
+        /// </summary>
+        public Task<HandleInfo[]> QueryHandles(int pid) =>
+            queryHandles.Query(pid);
+
         #endregion
     }
 }

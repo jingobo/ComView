@@ -50,6 +50,7 @@
     <Compile Include="ComPortModel.cs" />
     <Compile Include="Helpers\Delay.cs" />
     <Compile Include="Helpers\Location.cs" />
+    <Compile Include="Helpers\Miscellaneous.cs" />
     <Compile Include="Sort\IComSorter.cs" />
     <Compile Include="Sort\PrioritySorter.cs" />
     <Compile Include="Pool\IComPooler.cs" />

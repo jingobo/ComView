@@ -33,7 +33,7 @@ namespace ComView.Core.Pool
         /// </summary>
         public static Task Stop(this IList<IComPooler> poolers) =>
             poolers.Count > 0 ?
-                Task.WhenAny(poolers.Select(p => p.Stop())) :
+                Task.WhenAll(poolers.Select(p => p.Stop())) :
                 Task.Delay(0);
 
     }

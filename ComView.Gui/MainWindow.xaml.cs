@@ -6,6 +6,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using ComView.Core;
 using ComView.Core.Pool;
+using ComView.Wpf;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -41,11 +42,18 @@ namespace ComView.Gui
                     new DemoPooler(Ports),
                 };
 #else
+                var handleWindow = new HandleWindowView()
+                {
+                    Pooler = new ProcessPooler(Ports),
+                };
+
                 comPoolers = new IComPooler[]
                 {
                     new PresentPooler(Ports),
-                    new ProcessPooler(Ports)
+                    handleWindow.Pooler,
                 };
+
+                handleWindow.Show();
 #endif
             }
             #endregion

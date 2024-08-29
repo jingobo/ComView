@@ -29,6 +29,10 @@ namespace ComView.Deskband
         /// </summary>
         private readonly WidgetView view;
         /// <summary>
+        /// Окно просмотра дескрипторов
+        /// </summary>
+        private HandleWindowView handleWindow;
+        /// <summary>
         /// Список активных опросников
         /// </summary>
         private IComPooler[] poolers = new IComPooler[0];
@@ -59,31 +63,63 @@ namespace ComView.Deskband
 
             // Инициализация контекстного меню
             var demoMode = new DeskBandMenuAction("Режим демо");
+            var handleWindowMode = new DeskBandMenuAction("Список дескрипторов");
             Options.ContextMenuItems = new List<DeskBandMenuItem>()
             {
-                demoMode
+                demoMode,
+                handleWindowMode
             };
 
             // Пересоздание опросников
             async void RebuildPoolers()
             {
+                CloseHandleWindow();
+
                 // Остановка старых опросников
                 await poolers.Stop();
 
                 // Сброс портов
                 view.Ports.Clear();
 
-                // Создание новых
-                poolers = demoMode.Checked ?
-                    new IComPooler[]
+                // Создание демо опросника
+                if (demoMode.Checked)
+                {
+                    poolers = new IComPooler[]
                     {
                         new DemoPooler(view.Ports),
-                    } :
-                    new IComPooler[]
-                    {
-                        new PresentPooler(view.Ports),
-                        new ProcessPooler(view.Ports),
                     };
+                    return;
+                }
+
+                // Создание опросника процессов
+                var processPooler = new ProcessPooler(view.Ports);
+
+                // Показ окна дескрипторов
+                if (handleWindowMode.Checked)
+                {
+                    handleWindow = new HandleWindowView()
+                    {
+                        Pooler = processPooler,
+                    };
+
+                    handleWindow.Closed += (s, e) =>
+                    {
+                        if (handleWindow == null)
+                            return;
+
+                        // Закрыли окно вручную
+                        handleWindowMode.Checked = false;
+                        handleWindow = null;
+                    };
+                    handleWindow.Show();
+                }
+                
+                // Создание списка опросников
+                poolers = new IComPooler[]
+                {
+                    new PresentPooler(view.Ports),
+                    processPooler,
+                };
             }
             RebuildPoolers();
 
@@ -93,6 +129,28 @@ namespace ComView.Deskband
                 demoMode.Checked = !demoMode.Checked;
                 RebuildPoolers();
             };
+
+            // Обработчик клика по меню показа окна дескрипторов
+            handleWindowMode.Clicked += (s, e) =>
+            {
+                handleWindowMode.Checked = !handleWindowMode.Checked;
+                RebuildPoolers();
+            };
+        }
+        #endregion
+
+        #region methods
+        /// <summary>
+        /// Закрывает окно просмотра дескрипторов
+        /// </summary>
+        private void CloseHandleWindow()
+        {
+            if (handleWindow == null)
+                return;
+
+            var window = handleWindow;
+            handleWindow = null;
+            window.Close();
         }
         #endregion
 
@@ -108,6 +166,7 @@ namespace ComView.Deskband
         protected override void DeskbandOnClosed()
         {
             base.DeskbandOnClosed();
+            CloseHandleWindow();
             poolers.Stop();
         }
         #endregion

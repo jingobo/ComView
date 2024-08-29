@@ -1,0 +1,73 @@
+﻿<Window x:Class="ComView.Wpf.HandleWindowView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:ComView.Wpf"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        Title="Process Handles"
+        Width="800"
+        Height="450"
+        WindowStartupLocation="CenterScreen"
+        mc:Ignorable="d">
+    <Grid x:Name="dc" x:FieldModifier="private">
+        <Grid.Resources>
+            <Style TargetType="Button">
+                <Setter Property="Margin" Value="5" />
+                <Setter Property="Padding" Value="5 2" />
+                <Setter Property="Content" Value="Refresh" />
+            </Style>
+        </Grid.Resources>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!--  Панель выбора процесса  -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!--  Надпись  -->
+            <Label Grid.Column="0"
+                   VerticalAlignment="Center"
+                   Content="Process"
+                   FontWeight="Medium" />
+
+            <!--  Список процессов  -->
+            <ComboBox Grid.Column="1"
+                      VerticalAlignment="Center"
+                      ItemsSource="{Binding Pids}"
+                      SelectedItem="{Binding Pid}" />
+
+            <!--  Команда обновить  -->
+            <Button Grid.Column="2" Command="{Binding PidsQueryCommand}" />
+        </Grid>
+
+        <!--  Панель списка дескрипторов  -->
+        <Grid Grid.Row="1">
+            <!--  Список  -->
+            <ListView ItemsSource="{Binding Handles}">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Width="110" DisplayMemberBinding="{Binding Handle, StringFormat=X4}">Идентификатор</GridViewColumn>
+                        <GridViewColumn Width="500" DisplayMemberBinding="{Binding Path=Name}">Имя</GridViewColumn>
+                        <GridViewColumn Width="120" DisplayMemberBinding="{Binding Path=Status}">Статус</GridViewColumn>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+
+            <!--  Команда обновить  -->
+            <Button HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Command="{Binding HandlesQueryCommand}">
+                <Button.RenderTransform>
+                    <TranslateTransform Y="-5" />
+                </Button.RenderTransform>
+            </Button>
+        </Grid>
+    </Grid>
+</Window>
