@@ -51,11 +51,11 @@ void pipe_loop(void)
 
         // Обработка
         u.handle_req = request.handle;
-        const handle_name_t * const name = handle_query_name(request.process, u.handle);
+        const handle_info_t * const info = handle_info_query(request.process, u.handle);
 
         // Передача ответа
-        result = WriteFile(pipe, name, sizeof(handle_name_t), &transfer, NULL);
-        if (!result || transfer != sizeof(handle_name_t))
+        result = WriteFile(pipe, info, sizeof(handle_info_t), &transfer, NULL);
+        if (!result || transfer != sizeof(handle_info_t))
             break;
     }
 }

@@ -15,8 +15,8 @@ static HANDLE thread_handle = INVALID_HANDLE_VALUE;
 static HANDLE handle_query;
 // Длинна имени дескриптора
 static ULONG handle_name_size;
-// Буфер имени дескриптора
-static handle_name_t handle_name;
+// Буфер информации о дескрипторе
+static handle_info_t handle_info;
 
 // Идентификатор текущего процесса
 static DWORD process_cur_id;
@@ -34,7 +34,7 @@ static DWORD WINAPI thread_entry(LPVOID params)
         WaitForSingleObject(event_work, INFINITE);
 
         // Запрос
-        if (zw_query_object(handle_query, 1, handle_name.buffer, sizeof(handle_name.buffer), &handle_name_size) != 0)
+        if (zw_query_object(handle_query, 1, handle_info.buffer, sizeof(handle_info.buffer), &handle_name_size) != 0)
             handle_name_size = 0;
 
         // Готово
@@ -44,32 +44,42 @@ static DWORD WINAPI thread_entry(LPVOID params)
     return 0;
 }
 
-const handle_name_t * handle_query_name(DWORD process_id, HANDLE handle)
+// Производит копирование участка памяти
+static void handle_memcpy(void *dest, const void *source, size_t size)
+{
+    uint8_t *dst = (uint8_t *)dest;
+    uint8_t *src = (uint8_t *)source;
+
+    for (; size > 0; size--, dst++, src++)
+        *dst = *src;
+}
+
+const handle_info_t * handle_info_query(DWORD process_id, HANDLE handle)
 {
     // Предварительно
-    handle_name.size = 0;
+    handle_info.size = 0;
 
     // Текущий процесс не обслуживаем
     if (process_cur_id == process_id)
     {
-        handle_name.status = HANDLE_STATUS_SAME_PROCESS;
-        return &handle_name;
+        handle_info.status = HANDLE_STATUS_SAME_PROCESS;
+        return &handle_info;
     }
 
     // Открытие процесса
     const HANDLE process_handle = OpenProcess(PROCESS_DUP_HANDLE, TRUE, process_id);
     if (process_handle == INVALID_HANDLE_VALUE)
     {
-        handle_name.status = HANDLE_STATUS_OPEN_PROCESS;
-        return &handle_name;
+        handle_info.status = HANDLE_STATUS_OPEN_PROCESS;
+        return &handle_info;
     }
 
     // Клонирование дескриптора
     if (!DuplicateHandle(process_handle, handle, process_cur_handle, &handle_query, 0, FALSE, DUPLICATE_SAME_ACCESS))
     {
-        handle_name.status = HANDLE_TARGET_DUPLICATE;
+        handle_info.status = HANDLE_TARGET_DUPLICATE;
         CloseHandle(process_handle);
-        return &handle_name;
+        return &handle_info;
     }
 
     // Буфер типа дескриптора
@@ -85,14 +95,14 @@ const handle_name_t * handle_query_name(DWORD process_id, HANDLE handle)
     ULONG type_buffer_size;
     if (zw_query_object(handle_query, 2, &type_buffer, sizeof(type_buffer), &type_buffer_size) != 0)
     {
-        handle_name.status = HANDLE_TARGET_QUERY_TYPE;
+        handle_info.status = HANDLE_TARGET_QUERY_TYPE;
         goto fin;
     }
 
     // Обработка только файловых дескрипторов
     if (lstrcmpW(TEXT("File"), type_buffer.name.Buffer) != 0)
     {
-        handle_name.status = HANDLE_TARGET_INVALID_TYPE;
+        handle_info.status = HANDLE_TARGET_INVALID_TYPE;
         goto fin;
     }
 
@@ -112,12 +122,12 @@ const handle_name_t * handle_query_name(DWORD process_id, HANDLE handle)
 
         // На всякий случай
         handle_name_size = 0;
-        handle_name.status = HANDLE_TARGET_QUERY_NAME;
+        handle_info.status = HANDLE_TARGET_QUERY_NAME;
     }
     else
     {
-        handle_name.size = (intptr_t)handle_name_size;
-        handle_name.status = (handle_name.size >= 18) ?
+        handle_info.size = (intptr_t)handle_name_size;
+        handle_info.status = (handle_info.size >= 18) ?
             HANDLE_STATUS_SUCCESS :
             HANDLE_TARGET_QUERY_NAME;
     }
@@ -130,7 +140,7 @@ fin:
     CloseHandle(handle_query);
     CloseHandle(process_handle);
 
-    return &handle_name;
+    return &handle_info;
 }
 
 BOOL handle_init(void)

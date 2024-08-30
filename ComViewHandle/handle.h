@@ -24,7 +24,7 @@ enum
     HANDLE_TARGET_QUERY_NAME,
 };
 
-// Структура имени дескриптора
+// Структура информации о дескрипторе
 typedef struct
 {
     // Статус операции
@@ -33,11 +33,11 @@ typedef struct
     uint32_t size;
     // Буфер
     uint32_t buffer[512 / sizeof(uint32_t)];
-} handle_name_t;
+} handle_info_t;
 
 // Инициализация модуля
 BOOL handle_init(void);
-// Запрос имени дескриптора
-const handle_name_t * handle_query_name(DWORD process_id, HANDLE handle);
+// Запрос информации о дескрипторе
+const handle_info_t * handle_info_query(DWORD process_id, HANDLE handle);
 
 #endif // __HANDLE_H
