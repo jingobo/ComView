@@ -27,6 +27,10 @@ namespace ComView.Gui
         {
             #region fields, ctor
             /// <summary>
+            /// Обработчик оповещения закрытия приложения
+            /// </summary>
+            private readonly Action closing;
+            /// <summary>
             /// Список опросников портов
             /// </summary>
             private readonly IComPooler[] comPoolers;
@@ -46,6 +50,8 @@ namespace ComView.Gui
                 {
                     Pooler = new ProcessPooler(Ports),
                 };
+
+                closing = () => handleWindow.Close();
 
                 comPoolers = new IComPooler[]
                 {
@@ -70,8 +76,13 @@ namespace ComView.Gui
             /// <summary>
             /// Производит остановку опросников с асинхронным ожиданием
             /// </summary>
-            public Task Stop() =>
-                comPoolers.Stop();
+            public Task Stop()
+            {
+                if (closing != null)
+                    closing();
+
+                return comPoolers.Stop();
+            }
 
             #endregion
         }
