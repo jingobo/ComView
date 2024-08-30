@@ -173,13 +173,17 @@ namespace ComView.Core.Pool
         /// <summary>
         /// Класс элемента дескриптора кэша
         /// </summary>
-        private sealed class HandleCacheEntry
+        internal sealed class HandleCacheEntry
         {
             #region fields
             /// <summary>
-            /// Итоговое имя дескриптора
+            /// Имя дескриптора
             /// </summary>
             public string Name;
+            /// <summary>
+            /// Попытка опроса
+            /// </summary>
+            public int Probe;
             /// <summary>
             /// Признак присутствия в системе
             /// </summary>
@@ -201,11 +205,11 @@ namespace ComView.Core.Pool
             /// <summary>
             /// Конструктор по умолчанию
             /// </summary>
-            internal HandleInfo(int handle, string name, HandleStatus? status)
+            internal HandleInfo(int handle, HandleCacheEntry entry)
             {
                 Handle = handle;
-                Status = status;
-                Name = name;
+                Name = entry.Name;
+                Status = entry.Status;
             }
 
             /// <summary>
@@ -666,7 +670,8 @@ namespace ComView.Core.Pool
                                 switch (response.Status)
                                 {
                                     case HandleStatus.Success:
-                                        // Конвертирование итогового имени дескриптора
+                                        // Конвертирование имени дескриптора
+                                        cacheHandle.Probe = 0;
                                         cacheHandle.Name = Encoding.Unicode.GetString(response.Data, 16, response.Size - 18);
                                         break;
 
@@ -678,9 +683,13 @@ namespace ComView.Core.Pool
 
                                     case HandleStatus.TargetDuplicate:
                                     case HandleStatus.TargetQueryType:
-                                    case HandleStatus.TargetInvalidType:
                                         // Возможно дескриптор не корректный
                                         cacheHandle.Name = string.Empty;
+                                        break;
+                                    case HandleStatus.TargetInvalidType:
+                                        // Возможно тип еще не актуальный
+                                        if (++cacheHandle.Probe > 1)
+                                            cacheHandle.Name = string.Empty;
                                         break;
 
                                     case HandleStatus.TargetQueryName:
@@ -776,7 +785,7 @@ namespace ComView.Core.Pool
 
                         // Подготовка результата
                         return handles
-                            .Select(pair => new HandleInfo(pair.Key, pair.Value.Name, pair.Value.Status))
+                            .Select(pair => new HandleInfo(pair.Key, pair.Value))
                             .Sort((a, b) => a.Handle.CompareTo(b.Handle))
                             .ToArray();
                     });
